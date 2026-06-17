@@ -1,0 +1,13 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=pq-audit
+GenericName=Audit Log Sealer
+Comment=Tamper-evident, post-quantum audit logging
+Exec=pq-audit-gui
+Icon=dev.pqaudit.gui
+Terminal=false
+Categories=System;Security;
+Keywords=audit;log;sign;post-quantum;ML-DSA;SLH-DSA;tamper;
+StartupNotify=true
+StartupWMClass=dev.pqaudit.gui
