@@ -16,6 +16,11 @@ VENDOR = vendor/pqsign/util.c vendor/pqsign/keyfile.c vendor/pqsign/sigfile.c \
 OBJ    = $(SRC:.c=.o) $(VENDOR:.c=.o)
 BIN    = pq-audit
 
+# install layout (override with PREFIX=…, DESTDIR=… for packaging)
+PREFIX  ?= /usr/local
+DESTDIR ?=
+BINDIR   = $(DESTDIR)$(PREFIX)/bin
+
 all: $(BIN)
 
 $(BIN): $(OBJ)
@@ -36,7 +41,15 @@ asan: clean
 # LeakSanitizer needs ptrace; set LSAN=0 in sandboxes/containers that block it.
 LSAN ?= 1
 
+install: $(BIN)
+	install -Dm755 $(BIN) $(BINDIR)/$(BIN)
+	@echo "installed $(BIN) to $(BINDIR)"
+
+uninstall:
+	rm -f $(BINDIR)/$(BIN)
+	@echo "uninstalled $(BIN)"
+
 clean:
 	rm -f $(OBJ) $(BIN)
 
-.PHONY: all check asan clean
+.PHONY: all check asan install uninstall clean

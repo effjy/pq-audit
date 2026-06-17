@@ -18,7 +18,7 @@ with NIST's post-quantum signature standards. Any later edit, reorder, deletion,
 or truncation is detected on `verify` — and a quantum adversary still can't forge
 the seals over archived evidence.
 
-[Why](#-why) · [How it works](#-how-it-works) · [Install](#-install) · [Quick start](#-quick-start) · [Feeding](#-feeding-pq-audit) · [Sealing](#-sealing-m2) · [Forward security](#-forward-security-m3) · [Proofs](#-merkle-inclusion-proofs-m4) · [Off-box sinks](#-off-box-seal-sinks) · [Daemon](#-ingest-daemon-m5) · [Rotation](#-segment-rotation) · [Security](#-security-notes)
+[Why](#-why) · [How it works](#-how-it-works) · [Install](#-install) · [Quick start](#-quick-start) · [Desktop GUI](#-desktop-gui) · [Feeding](#-feeding-pq-audit) · [Sealing](#-sealing-m2) · [Forward security](#-forward-security-m3) · [Proofs](#-merkle-inclusion-proofs-m4) · [Off-box sinks](#-off-box-seal-sinks) · [Daemon](#-ingest-daemon-m5) · [Rotation](#-segment-rotation) · [Security](#-security-notes)
 
 </div>
 
@@ -91,10 +91,31 @@ sudo apt install build-essential pkg-config libssl-dev libargon2-dev
 make            # builds ./pq-audit
 make check      # full test suite (chain, seals, FS, proofs, daemon, rotation)
 make asan       # the same suite under ASan/UBSan   (LSAN=0 inside containers)
+
+sudo make install     # installs pq-audit → /usr/local/bin
+sudo make uninstall   # removes it
 ```
 
 > `vendor/pqsign/` is an unmodified copy of pq-sign's library sources plus a
 > small `pqoqs.c` liboqs glue layer; pq-audit is otherwise self-contained.
+
+### Desktop GUI (optional)
+
+The [desktop GUI](#-desktop-gui) additionally needs **GTK 3** (`libgtk-3-dev`)
+and, for reading root-only logs, **polkit** (`pkexec`):
+
+```sh
+sudo apt install libgtk-3-dev policykit-1
+cd gui
+make                  # builds ./gui/pq-audit-gui
+sudo make install     # installs the binary, icon, and .desktop entry
+sudo make uninstall   # removes them
+```
+
+`make install` puts `pq-audit-gui` on your PATH and registers the application
+icon + menu entry, so it appears in your launcher and taskbar. Install the
+[CLI](#-install) too (above) — the GUI shells out to `pq-audit`, which must be
+on your PATH. Override the location for either with `PREFIX=` / `DESTDIR=`.
 
 ---
 
@@ -124,6 +145,55 @@ $ echo $?
 ```
 
 `--src` tags the producer (e.g. tids=1, syslog=2, app=3); `--level` is severity.
+
+---
+
+## 🖥️ Desktop GUI
+
+The CLI is precise but ceremonious. `gui/` ships a small **GTK3** front-end that
+drives the same binary — pick a log file, click **Feed → Seal → Verify**, and
+read the result in a live console. It is a thin wrapper: it never links the
+pq-audit core, it just shells out to `pq-audit` and streams stdout/stderr, so
+it tracks the CLI automatically and adds no cryptographic surface of its own.
+
+<div align="center">
+  <img src="screenshot.png" alt="pq-audit GTK3 desktop GUI" width="640">
+</div>
+
+```sh
+cd gui && make            # needs gtk+-3.0 (pkg-config)
+sudo make install         # optional: PATH + menu/taskbar entry (see Install)
+
+pq-audit-gui              # if installed; else ./pq-audit-gui from the build dir
+```
+
+The binary field defaults to `pq-audit` (found on your PATH once the
+[CLI is installed](#-install)); point it elsewhere if you keep it in a build
+dir.
+
+What the window gives you:
+
+- **Audit log & keys** — binary path, audit dir, secret/public key, and an
+  **algorithm dropdown** (`ml-dsa-44/65/87`, `slh-dsa-128f/192f/256f`) used by
+  **Keygen**. Keygen auto-fills the key/pub fields.
+- **Feed a log file** — file picker, `src`/`level` spinners, and a **“Read as
+  root (pkexec)”** toggle (on by default). The entire ingest loop runs inside a
+  *single* `pkexec sh -c …`, so reading a root-only file like
+  `/var/log/kern.log` costs **one** password prompt, not one per line.
+- **Forward security & off-box sinks** — **FS-Init** (epochs + anchor algorithm)
+  and **FS-Advance** for the forward-secure keyring; a **sink** field mirrors
+  seals off-box (`--sink`) and a **seal-file** field verifies against a trusted
+  copy (`--seal-file`).
+- **Init / Keygen / Feed → / Seal / Verify** buttons, plus a console that echoes
+  each command and decodes pq-audit's exit codes (`0` OK, `2` tamper/invalid).
+
+Seal prefers the forward-secure **keyring** (`--ring`) when its field is set and
+falls back to the single **key** (`--key`) otherwise; Verify uses
+`--fspub`/`--anchor` when both are set, else `--pub`. So the same window covers
+the basic, forward-secure, and off-box workflows below.
+
+> The GUI runs as your normal user — only the privileged *reads* are elevated
+> via polkit, so the GTK toolkit never runs as root.
 
 ---
 
@@ -324,6 +394,9 @@ pq-audit/
 │   ├── daemon.c          `run` ingest daemon (poll loop)
 │   └── util.c            SHA-256, time, atomic writes
 ├── vendor/pqsign/        vendored pq-sign library + liboqs glue (pqoqs.c)
+├── gui/                   GTK3 front-end (shells out to the binary)
+│   ├── pq-audit-gui.c     single-file app: pickers, pkexec feed, live console
+│   └── Makefile           gtk+-3.0 build
 ├── tests/run.sh          end-to-end suite
 └── Makefile
 ```
