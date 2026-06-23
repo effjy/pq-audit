@@ -159,7 +159,7 @@ it tracks the CLI automatically and adds no cryptographic surface of its own.
 <div align="center">
   <img src="screenshot.png" alt="pq-audit GTK3 desktop GUI" width="640">
 </div>
-<br><br>
+<br>
 
 ```sh
 cd gui && make            # needs gtk+-3.0 (pkg-config)
